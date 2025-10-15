@@ -35,7 +35,15 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
         log.info('Start epoch {}'.format(epoch))
         
         scheduler.step()
-        log.info('lr = {}'.format(scheduler.get_lr()))
+        # get_last_lr is the public API on newer PyTorch; fallback to get_lr for older versions
+        try:
+            current_lrs = scheduler.get_last_lr()
+        except Exception:
+            try:
+                current_lrs = scheduler.get_lr()
+            except Exception:
+                current_lrs = ['unknown']
+        log.info('lr = {}'.format(current_lrs))
         
         for batch_id, batch_data in enumerate(data_loader):
             # getting data batch
@@ -55,7 +63,12 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
                 [ori_c, ori_d, ori_h, ori_w] = label_mask.shape 
                 label_mask = np.reshape(label_mask, [ori_d, ori_h, ori_w])
                 scale = [d*1.0/ori_d, h*1.0/ori_h, w*1.0/ori_w]
-                label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
+                # use ndimage.zoom (interpolation alias is deprecated in newer scipy)
+                try:
+                    label_mask = ndimage.zoom(label_mask, scale, order=0)
+                except Exception:
+                    # fallback to older attribute if necessary
+                    label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
                 new_label_masks[label_id] = label_mask
 
             new_label_masks = torch.tensor(new_label_masks).to(torch.int64)
@@ -132,11 +145,19 @@ if __name__ == '__main__':
     if sets.resume_path:
         if os.path.isfile(sets.resume_path):
             print("=> loading checkpoint '{}'".format(sets.resume_path))
-            checkpoint = torch.load(sets.resume_path)
+            # load checkpoint with map_location to support CPU-only machines
+            if sets.no_cuda:
+                checkpoint = torch.load(sets.resume_path, map_location='cpu')
+            else:
+                checkpoint = torch.load(sets.resume_path)
             model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            try:
+                optimizer.load_state_dict(checkpoint['optimizer'])
+            except Exception:
+                # optimizer state may be incompatible; skip restoring optimizer in that case
+                print('Warning: failed to load optimizer state from checkpoint')
             print("=> loaded checkpoint '{}' (epoch {})"
-              .format(sets.resume_path, checkpoint['epoch']))
+              .format(sets.resume_path, checkpoint.get('epoch', 'unknown')))
 
     # getting data
     sets.phase = 'train'

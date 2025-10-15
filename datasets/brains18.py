@@ -152,8 +152,11 @@ class BrainS18Dataset(Dataset):
         Resize the data to the input size
         """ 
         [depth, height, width] = data.shape
-        scale = [self.input_D*1.0/depth, self.input_H*1.0/height, self.input_W*1.0/width]  
-        data = ndimage.interpolation.zoom(data, scale, order=0)
+        scale = [self.input_D*1.0/depth, self.input_H*1.0/height, self.input_W*1.0/width]
+        try:
+            data = ndimage.zoom(data, scale, order=0)
+        except Exception:
+            data = ndimage.interpolation.zoom(data, scale, order=0)
 
         return data
 
@@ -169,8 +172,21 @@ class BrainS18Dataset(Dataset):
 
     def __training_data_process__(self, data, label): 
         # crop data according net input size
-        data = data.get_data()
-        label = label.get_data()
+        # nibabel 5.x: get_data() removed. Prefer get_fdata() with fallbacks.
+        try:
+            data = data.get_fdata()
+        except Exception:
+            try:
+                data = data.get_data()
+            except Exception:
+                data = np.asanyarray(data.dataobj)
+        try:
+            label = label.get_fdata()
+        except Exception:
+            try:
+                label = label.get_data()
+            except Exception:
+                label = np.asanyarray(label.dataobj)
         
         # drop out the invalid range
         data, label = self.__drop_invalid_range__(data, label)
@@ -190,7 +206,14 @@ class BrainS18Dataset(Dataset):
 
     def __testing_data_process__(self, data): 
         # crop data according net input size
-        data = data.get_data()
+        # nibabel 5.x: get_data() removed. Prefer get_fdata() with fallback.
+        try:
+            data = data.get_fdata()
+        except Exception:
+            try:
+                data = data.get_data()
+            except Exception:
+                data = np.asanyarray(data.dataobj)
 
         # resize data
         data = self.__resize_data__(data)

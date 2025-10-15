@@ -1,4 +1,5 @@
 import torch
+import os
 from torch import nn
 from models import resnet
 
@@ -74,7 +75,6 @@ def generate_model(opt):
             model = nn.DataParallel(model, device_ids=opt.gpu_id)
             net_dict = model.state_dict() 
         else:
-            import os
             os.environ["CUDA_VISIBLE_DEVICES"]=str(opt.gpu_id[0])
             model = model.cuda() 
             model = nn.DataParallel(model, device_ids=None)
@@ -84,12 +84,20 @@ def generate_model(opt):
     
     # load pretrain
     if opt.phase != 'test' and opt.pretrain_path:
-        print ('loading pretrained model {}'.format(opt.pretrain_path))
-        pretrain = torch.load(opt.pretrain_path)
-        pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
-         
-        net_dict.update(pretrain_dict)
-        model.load_state_dict(net_dict)
+        if os.path.isfile(opt.pretrain_path):
+            print('loading pretrained model {}'.format(opt.pretrain_path))
+            try:
+                if opt.no_cuda:
+                    pretrain = torch.load(opt.pretrain_path, map_location='cpu')
+                else:
+                    pretrain = torch.load(opt.pretrain_path)
+            except Exception:
+                # fallback to cpu map_location
+                pretrain = torch.load(opt.pretrain_path, map_location='cpu')
+            pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
+
+            net_dict.update(pretrain_dict)
+            model.load_state_dict(net_dict)
 
         new_parameters = [] 
         for pname, p in model.named_parameters():

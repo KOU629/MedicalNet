@@ -91,6 +91,58 @@ We transferred the above pre-trained models to the multi-class segmentation task
 - Install Python 3.7.0
 - pip install -r requirements.txt
 
+Note for Windows users: This repo targets older dependencies. For a smooth start on modern Windows, see SETUP_WINDOWS.md for two options:
+- Option A: Reproduce legacy env (Python 3.7 + CUDA 9 + PyTorch 0.4.x)
+- Option B: Quick CPU-only run with modern PyTorch
+
+## Windows Quickstart (PowerShell)
+
+If you're on Windows and want a working setup quickly, use this CPU-only flow. It runs the toy CI training and is enough to validate the repo works on your PC. Later you can switch to GPU.
+
+1) Create and activate venv
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+2) Install minimal deps (modern CPU PyTorch)
+```powershell
+python -m pip install -U pip
+python -m pip install numpy nibabel scipy
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+3) Run minimal tests
+```powershell
+python .\test_ci.py
+python .\train.py --ci_test
+```
+
+Expected: training runs 1 epoch on the toy data and exits.
+
+### Reproduce legacy environment (optional, for GPU with old CUDA)
+
+If you need to match the original paper code closely (PyTorch 0.4.x + CUDA 9.0), use Conda and try:
+
+```powershell
+conda create -n medicalnet37 python=3.7 -y
+conda activate medicalnet37
+conda install -y pip numpy scipy nibabel
+
+# CPU-only example of torch 0.4.1 (wheel availability varies)
+pip install https://download.pytorch.org/whl/cpu/torch-0.4.1-cp37-cp37m-win_amd64.whl
+
+# or attempt CUDA 9.0 build (may be hard to find on Windows)
+# conda install -c pytorch pytorch=0.4.1 cuda90 -y
+
+pip install -r .\requirements.txt
+python .\test_ci.py
+```
+
+Heads-up:
+- Old torch==0.4.1 may not be available in modern Windows/pip. The CPU quickstart above is the easiest way to validate the code path.
+- We added tiny compatibility patches (map_location for torch.load, ndimage.zoom, nibabel get_fdata) to make this repo run smoothly on modern packages.
+
 
 ### Demo
 - Structure of data directories

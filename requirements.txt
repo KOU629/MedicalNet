@@ -1,6 +1,9 @@
 # python requirements
 pip>=9.0.1
 #logging==0.4.9.6
+# NOTE: Original project pinned torch==0.4.1 which is very old and may not be
+# available on modern Windows/pip. For quick CPU-only runs, install a modern
+# torch CPU wheel instead (see SETUP_WINDOWS.md for commands).
 torch==0.4.1
 numpy==1.15.4
 nibabel==2.4.1
